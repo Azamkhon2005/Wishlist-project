@@ -1,7 +1,11 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-app = FastAPI(title="SecDev Course App", version="0.1.0")
+from . import models
+from .api import users, wishes
+from .database import engine
+
+app = FastAPI(title="Wishlist API (Simple Auth)", version="0.1.0")
 
 
 class ApiError(Exception):
@@ -21,7 +25,6 @@ async def api_error_handler(request: Request, exc: ApiError):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    # Normalize FastAPI HTTPException into our error envelope
     detail = exc.detail if isinstance(exc.detail, str) else "http_error"
     return JSONResponse(
         status_code=exc.status_code,
@@ -34,7 +37,6 @@ def health():
     return {"status": "ok"}
 
 
-# Example minimal entity (for tests/demo)
 _DB = {"items": []}
 
 
@@ -55,3 +57,17 @@ def get_item(item_id: int):
         if it["id"] == item_id:
             return it
     raise ApiError(code="not_found", message="item not found", status=404)
+
+
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=engine)
+
+
+app.include_router(users.router, prefix="/api")
+app.include_router(wishes.router, prefix="/api")
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Wishlist API! Visit /docs for documentation."}
