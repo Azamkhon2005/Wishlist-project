@@ -5,4 +5,8 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-    profiles: ["dev"]
+    volumes:
+      - ./app:/app
+      - sqlite_data:/app/data
+volumes:
+  sqlite_data:
