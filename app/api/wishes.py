@@ -16,7 +16,7 @@ def create_wish(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_wish = models.Wish(**wish.dict(), owner_id=current_user.id)
+    db_wish = models.Wish(**wish.model_dump(), owner_id=current_user.id)
     db.add(db_wish)
     db.commit()
     db.refresh(db_wish)

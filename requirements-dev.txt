@@ -6,3 +6,4 @@ isort==5.13.2
 pre-commit==3.5.0
 flake8
 mypy
+pip-audit==2.7.2
