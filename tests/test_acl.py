@@ -40,6 +40,7 @@ def test_acl_foreign_wish_forbidden():
     assert r.status_code == 201, r.text
     wish_id = r.json()["id"]
 
+    # Alice запрашивает wish Bob -> 403
     r = client.get(
         f"/api/wishes/{wish_id}", headers={"X-API-Key": alice_key, **headers_ip}
     )
