@@ -100,9 +100,10 @@ def on_startup():
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
+    storage: defaultdict = defaultdict(deque)
+
     def __init__(self, app):
         super().__init__(app)
-        self.storage = defaultdict(deque)
         self.window = 60  # seconds
         self.limits = {
             "reg": 5,  # /api/users POST

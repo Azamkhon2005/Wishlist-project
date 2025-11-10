@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -7,6 +8,7 @@ from app.main import app
 client = TestClient(app)
 
 
+@pytest.mark.rate_limit
 def test_registration_rate_limit_5_per_minute():
     headers = {"X-Forwarded-For": "10.0.0.123"}
     for i in range(5):

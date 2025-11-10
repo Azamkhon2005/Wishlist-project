@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .. import models, schemas, security
+from ..custom_routing import SecureJsonRoute
 from ..database import get_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = router = APIRouter(
+    prefix="/users", tags=["Users"], route_class=SecureJsonRoute
+)
 
 
 @router.post("/", response_model=schemas.UserInDB, status_code=status.HTTP_201_CREATED)
