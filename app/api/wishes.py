@@ -1,13 +1,15 @@
+from decimal import Decimal
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..custom_routing import SecureJsonRoute
 from ..database import get_db
 from ..dependencies import get_current_user
 
-router = APIRouter(prefix="/wishes", tags=["Wishes"])
+router = APIRouter(prefix="/wishes", tags=["Wishes"], route_class=SecureJsonRoute)
 
 
 @router.post("/", response_model=schemas.WishInDB, status_code=status.HTTP_201_CREATED)
@@ -25,7 +27,7 @@ def create_wish(
 
 @router.get("/", response_model=List[schemas.WishInDB])
 def read_wishes(
-    price_lt: Optional[float] = None,
+    price_lt: Optional[Decimal] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

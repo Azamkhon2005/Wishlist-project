@@ -7,44 +7,46 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_acl_foreign_wish_forbidden():
-    headers_ip = {"X-Forwarded-For": "10.0.0.77"}
-
-    alice = f"alice_acl_{uuid.uuid4().hex}"
-    bob = f"bob_acl_{uuid.uuid4().hex}"
-
-    r1 = client.post(
-        "/api/users/",
-        headers=headers_ip,
-        json={"username": alice, "password": "alicepwd"},
+def create_user_and_get_key(client: TestClient) -> str:
+    username = f"user_{uuid.uuid4().hex}"
+    password = "password123"
+    response = client.post(
+        "/api/users/", json={"username": username, "password": password}
     )
-    r2 = client.post(
-        "/api/users/",
-        headers=headers_ip,
-        json={"username": bob, "password": "bobpwd"},
-    )
-    assert r1.status_code == 201 and r2.status_code == 201, (r1.text, r2.text)
-    alice_key = r1.json()["api_key"]
-    bob_key = r2.json()["api_key"]
+    assert response.status_code == 201
+    return response.json()["api_key"]
 
-    r = client.post(
+
+def test_user_cannot_access_other_users_wish():
+    api_key_a = create_user_and_get_key(client)
+    api_key_b = create_user_and_get_key(client)
+    headers_a = {"X-API-Key": api_key_a}
+    headers_b = {"X-API-Key": api_key_b}
+
+    response_create = client.post(
         "/api/wishes/",
-        headers={"X-API-Key": bob_key, **headers_ip},
-        json={
-            "title": "Купить книгу",
-            "link": None,
-            "price_estimate": 10.0,
-            "notes": None,
-        },
+        headers=headers_a,
+        json={"title": "Alice's Secret Wish", "price_estimate": "100.00"},
     )
-    assert r.status_code == 201, r.text
-    wish_id = r.json()["id"]
+    assert response_create.status_code == 201
+    wish_id = response_create.json()["id"]
 
-    # Alice запрашивает wish Bob -> 403
-    r = client.get(
-        f"/api/wishes/{wish_id}", headers={"X-API-Key": alice_key, **headers_ip}
+    response_get = client.get(f"/api/wishes/{wish_id}", headers=headers_b)
+    assert response_get.status_code == 403
+    assert "Not enough permissions" in response_get.json()["detail"]
+
+    response_put = client.put(
+        f"/api/wishes/{wish_id}",
+        headers=headers_b,
+        json={"title": "Mallory's Wish Now"},
     )
-    assert r.status_code == 403
-    body = r.json()
-    assert body["status"] == 403
-    assert "correlation_id" in body
+    assert response_put.status_code == 403
+    assert "Not enough permissions" in response_put.json()["detail"]
+
+    response_delete = client.delete(f"/api/wishes/{wish_id}", headers=headers_b)
+    assert response_delete.status_code == 403
+    assert "Not enough permissions" in response_delete.json()["detail"]
+
+    response_get_final = client.get(f"/api/wishes/{wish_id}", headers=headers_a)
+    assert response_get_final.status_code == 200
+    assert response_get_final.json()["title"] == "Alice's Secret Wish"
