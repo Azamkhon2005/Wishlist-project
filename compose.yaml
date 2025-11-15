@@ -1,12 +1,22 @@
+version: '3.8'
+
 services:
-  app:
-    build: .
+  wishlist_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wishlist_api
+    restart: unless-stopped
     ports:
       - "8000:8000"
-    environment:
-      - PYTHONUNBUFFERED=1
     volumes:
-      - ./app:/app
-      - sqlite_data:/app/data
+      - wishlist_data:/app/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
 volumes:
-  sqlite_data:
+  wishlist_data:
