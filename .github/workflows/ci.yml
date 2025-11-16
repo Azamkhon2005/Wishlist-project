@@ -37,13 +37,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Установка из обоих файлов, если они существуют, как и в твоем проекте
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
       - name: Lint & Format
         run: |
-          # Ruff с выводом в формате GitHub для аннотаций прямо в PR
           ruff check --output-format=github .
           black --check .
           isort --check-only .
