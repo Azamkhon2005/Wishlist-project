@@ -41,7 +41,15 @@ jobs:
       - name: Generate SCA Summary
         run: |
           echo "# SCA summary" > EVIDENCE/P09/sca_summary.md
-          cat EVIDENCE/P09/sca_report.json | jq '[.matches[].vulnerability.severity] | group_by(.) | map({(.[0]): length}) | add' >> EVIDENCE/P09/sca_summary.md || echo "No vulnerabilities found or jq error" >> EVIDENCE/P09/sca_summary.md
+
+          # Считаем количество находок, чтобы не печатать null
+          COUNT=$(jq '.matches | length' EVIDENCE/P09/sca_report.json)
+
+          if [ "$COUNT" -eq "0" ]; then
+            echo "✅ No vulnerabilities found (Clean scan)." >> EVIDENCE/P09/sca_summary.md
+          else
+            cat EVIDENCE/P09/sca_report.json | jq '[.matches[].vulnerability.severity] | group_by(.) | map({(.[0]): length}) | add' >> EVIDENCE/P09/sca_summary.md
+          fi
 
           echo "" >> EVIDENCE/P09/sca_summary.md
           echo "Full report available in artifacts." >> EVIDENCE/P09/sca_summary.md
