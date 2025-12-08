@@ -1,0 +1,11 @@
+rules:
+  - id: python-avoid-print
+    patterns:
+      - pattern: print(...)
+    message: "Found 'print' statement. Use 'logging' (logger.info/warning) instead for production code."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      category: best-practice
+      technology:
+        - python
