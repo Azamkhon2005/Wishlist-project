@@ -1,0 +1,13 @@
+title = "Wishlist Gitleaks Config"
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+    '''EVIDENCE/.*''',
+    '''tests/.*''',
+    '''security/.*'''
+]
+regexes = [
+    '''example-key''',
+    '''dummy-value''',
+]
