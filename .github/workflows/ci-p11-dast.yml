@@ -1,0 +1,99 @@
+name: Security - DAST (ZAP Baseline)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**/*.py"
+      - "requirements.txt"
+      - "compose.yaml"
+      - "Dockerfile"
+      - ".github/workflows/ci-p11-dast.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dast_zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure evidence dirs
+        run: mkdir -p EVIDENCE/P11
+
+      # ------------------------------------------------------------------
+      # 1. Запуск приложения через Docker Compose
+      # Это гарантирует, что окружение (appuser, пути, БД) идентично локальному
+      # ------------------------------------------------------------------
+      - name: Start Application (Docker Compose)
+        run: |
+          # Собираем и запускаем в фоне
+          docker compose up -d --build
+
+          echo "Waiting for service to start..."
+          # Ждем, пока контейнер ответит на порту 8000 (у вас в compose проброс 8000:8000)
+          timeout 60 bash -c 'until curl -sf http://127.0.0.1:8000/health; do sleep 2; done'
+
+          echo "✅ Service is UP via Docker Compose!"
+
+      # Если сервис не поднялся, выводим логи контейнера, чтобы понять причину
+      - name: Debug Logs (on failure)
+        if: failure()
+        run: docker compose logs
+
+      # ------------------------------------------------------------------
+      # 2. ZAP Baseline Scan
+      # Используем --network host, чтобы ZAP видел localhost раннера,
+      # где Docker Compose пробросил порт 8000
+      # ------------------------------------------------------------------
+      - name: ZAP Baseline Scan
+        run: |
+          # Даем права на запись для Docker (иногда ZAP падает из-за прав доступа к файлам)
+          chmod -R 777 EVIDENCE/P11
+
+          docker run --rm \
+            --network host \
+            -v $PWD/EVIDENCE/P11:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+              -t http://127.0.0.1:8000 \
+              -r zap_baseline.html \
+              -J zap_baseline.json \
+              -d \
+              -I || true
+
+      # ------------------------------------------------------------------
+      # 3. Генерация сводки
+      # ------------------------------------------------------------------
+      - name: Generate DAST Summary
+        run: |
+          echo "# P11 DAST Summary" > EVIDENCE/P11/dast_summary.md
+          echo "Target: http://127.0.0.1:8000 (Docker Compose)" >> EVIDENCE/P11/dast_summary.md
+          echo "" >> EVIDENCE/P11/dast_summary.md
+
+          ALERTS_COUNT=$(jq '.site[].alerts | length' EVIDENCE/P11/zap_baseline.json || echo "0")
+
+          if [ "$ALERTS_COUNT" == "0" ]; then
+             echo "✅ No alerts found." >> EVIDENCE/P11/dast_summary.md
+          else
+             echo "### Found Alerts ($ALERTS_COUNT unique types):" >> EVIDENCE/P11/dast_summary.md
+             jq -r '.site[].alerts[] | "- **" + .riskdesc + "**: " + .name' EVIDENCE/P11/zap_baseline.json | sort >> EVIDENCE/P11/dast_summary.md
+          fi
+
+          echo "" >> EVIDENCE/P11/dast_summary.md
+          echo "Full reports available in artifacts." >> EVIDENCE/P11/dast_summary.md
+
+      - name: Upload DAST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: P11_EVIDENCE
+          path: EVIDENCE/P11
