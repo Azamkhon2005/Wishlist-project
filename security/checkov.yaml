@@ -1,0 +1,7 @@
+soft-fail: true
+quiet: true
+framework:
+  - kubernetes
+  - dockerfile
+  - secrets
+output: json

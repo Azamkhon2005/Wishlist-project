@@ -1,0 +1,7 @@
+format: json
+severity:
+  - HIGH
+  - CRITICAL
+scanners:
+  - vuln
+  - config
